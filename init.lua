@@ -79,7 +79,7 @@ do -- converters rgb > X
 		return bit.bor(bit.lshift(self.r, 16), bit.lshift(self.g, 8), self.b)
 	end
 	
-	function Color:ToHexa() -- Alpha support, 32bit
+	function Color:ToHexaDecimal() -- Alpha support, 32bit
 		return bit.bor(bit.lshift(self.r, 24), bit.lshift(self.g, 16), bit.lshift(self.b, 8), self.a)
 	end
 
@@ -89,6 +89,14 @@ do -- converters rgb > X
 		end
 
 		return string.format("%x", (self.r * 0x10000) + (self.g * 0x100) + self.b):upper()
+	end
+	
+	function Color:ToHexa(hash)
+		if hash then
+			return string.format("#%x", (self.r * 0x1000000) + (self.g * 0x10000) + (self.b * 0x100) + self.a):upper()
+		end
+
+		return string.format("%x", (self.r * 0x1000000) + (self.g * 0x10000) + (self.b * 0x100) + self.a):upper()
 	end
 
 	function Color:ToHSV()
@@ -297,7 +305,9 @@ function Color.test()
 	print("")
 
 	print("\tcolor > hex\t", Color(255, 0, 0, alpha):ToHex())
-	print("\tcolor > hexdeciminal", Color(255, 0, 0, alpha):ToHexDecimal())
+	print("\tcolor > hexa\t", Color(255, 0, 0, alpha):ToHexa())
+	print("\tcolor > hexdecimal", Color(255, 0, 0, alpha):ToHexDecimal())
+	print("\tcolor > hexadecimal", Color(255, 0, 0, alpha):ToHexaDecimal())
 	print("\tcolor > hsv\t", table.concat({Color(255, 0, 0, alpha):ToHSV()}, ", "))
 	print("\tcolor > hsl\t", table.concat({Color(255, 0, 0, alpha):ToHSL()}, ", "))
 	print("\tcolor > cmyk\t", table.concat({Color(255, 0, 0, alpha):ToCMYK()}, ", "))
