@@ -166,10 +166,10 @@ do -- converters rgb > X
 
 	function Color:Contrast(smooth)
 		if smooth then
-			local c = 255 - self:ToHexDeciminal() / 0xffffff * 255
+			local c = 255 - self:ToHexDecimal() / 0xffffff * 255
 			return Color(c, c, c)
 		else
-			return self:ToHexDeciminal() > 0xffffff / 2 and Color(0, 0, 0) or Color(255, 255, 255)
+			return self:ToHexDecimal() > 0xffffff / 2 and Color(0, 0, 0) or Color(255, 255, 255)
 		end
 	end
 end
@@ -288,7 +288,8 @@ function Color.test()
 
 	print("\trgb > color\t", Color(255, 0, 0))
 	print("\thex > color\t", Color.hex("#FF0000", alpha))
-	print("\thexdeciminal > color", Color.hexdeciminal(16711680, alpha))
+	print("\thexdec > color", Color.hex(16711680, alpha))
+	print("\thexa > color", Color.hexa(4278190255))
 	print("\thsv > color\t", Color.hsv(0, 100, 100, alpha))
 	print("\thsl > color\t", Color.hsl(0, 100, 50, alpha))
 	print("\tcmyk > color\t", Color.cmyk(0, 100, 100, 0, alpha))
@@ -296,7 +297,7 @@ function Color.test()
 	print("")
 
 	print("\tcolor > hex\t", Color(255, 0, 0, alpha):ToHex())
-	print("\tcolor > hexdeciminal", Color(255, 0, 0, alpha):ToHexDeciminal())
+	print("\tcolor > hexdeciminal", Color(255, 0, 0, alpha):ToHexDecimal())
 	print("\tcolor > hsv\t", table.concat({Color(255, 0, 0, alpha):ToHSV()}, ", "))
 	print("\tcolor > hsl\t", table.concat({Color(255, 0, 0, alpha):ToHSL()}, ", "))
 	print("\tcolor > cmyk\t", table.concat({Color(255, 0, 0, alpha):ToCMYK()}, ", "))
