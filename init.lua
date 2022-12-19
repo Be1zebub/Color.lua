@@ -68,7 +68,7 @@ end
 do -- converters rgb > X
 	local bit = bit or bit32
 
-	function Color:ToHexDeciminal()
+	function Color:ToHexDecimal() -- 24bit
 	--[[
 		local r, g, b = self.r, self.g, self.b
 		r = bit.band(bit.lshift(r, 16), 0xFF0000)
@@ -77,6 +77,10 @@ do -- converters rgb > X
 		return bit.bor(bit.bor(r, g), b)
 	]]--
 		return bit.bor(bit.lshift(self.r, 16), bit.lshift(self.g, 8), self.b)
+	end
+	
+	function Color:ToHexa() -- Alpha support, 32bit
+		return bit.bor(bit.lshift(self.r, 24), bit.lshift(self.g, 16), bit.lshift(self.b, 8), self.a)
 	end
 
 	function Color:ToHex(hash)
@@ -175,27 +179,24 @@ do -- constructors X > rgb
 
 	constructor.__index = constructor
 
-	local rshift, gshift, bshift = 8 * 2, 8 * 3, 8
-	local rmask = bit.lshift(0xFF, rshift)
-	local gmask = bit.lshift(0xFF, gshift)
-	local bmask = bit.lshift(0xFF, bshift)
-
-	function constructor.hexdeciminal(int, alpha)
+	local isstring = isstring or function(str) return type(str) == "string" end
+	function constructor.hex(hex, alpha)
+		if isstring(hex) then hex = tonumber(hex:gsub("^[#0]x?", "")) end
 		return setmetatable({
-			r = bit.rshift(bit.band(int, rmask), rshift),
-			g = bit.rshift(bit.band(int, gmask), gshift),
-			b = bit.rshift(bit.band(int, bmask), bshift),
+			r = bit.rshift(bit.band(hex, 0xFF0000), 16),
+			g = bit.rshift(bit.band(hex, 0xFF00), 8),
+			b = bit.band(hex, 0xFF),
 			a = alpha or 255
 		}, Color)
 	end
-
-	function constructor.hex(hex, alpha)
-		hex = hex:gsub("#", "")
+	
+	function constructor.hexa(hexa)
+		if isstring(hexa) then hexa = tonumber(hexa:gsub("^[#0]x?", "")) end
 		return setmetatable({
-			r = tonumber("0x".. hex:sub(1, 2)),
-			g = tonumber("0x".. hex:sub(3, 4)),
-			b = tonumber("0x".. hex:sub(5, 6)),
-			a = alpha or 255
+			r = bit.rshift(bit.band(hexa, 0xFF000000), 24),
+			g = bit.rshift(bit.band(hexa, 0xFF0000), 16),
+			b = bit.rshift(bit.band(hexa, 0xFF00), 8),
+			a = bit.band(hexa, 0xFF)
 		}, Color)
 	end
 
