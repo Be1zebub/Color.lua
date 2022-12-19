@@ -159,6 +159,15 @@ do -- converters rgb > X
 	function Color:ToVector()
 		return Vector(self.r / 255, self.g / 255, self.b / 255)
 	end
+
+	function Color:Contrast(smooth)
+		if smooth then
+			local c = 255 - self:ToHexDeciminal() / 0xffffff * 255
+			return Color(c, c, c)
+		else
+			return self:ToHexDeciminal() > 0xffffff / 2 and Color(0, 0, 0) or Color(255, 255, 255)
+		end
+	end
 end
 
 do -- constructors X > rgb
