@@ -10,42 +10,58 @@ do -- meta events
 		return string.format("Color(%d, %d, %d, %d)", self.r, self.g, self.b, self.a)
 	end
 
-	function Color:__add(col)
-		return Color(self.r + col.r, self.g + col.g, self.b + col.b, self.a + col.a)
-	end
-
-	function Color:__sub(col)
-		return Color(self.r - col.r, self.g - col.g, self.b - col.b, self.a - col.a)
-	end
-
 	function Color:__concat(v)
 		return tostring(self) .. v
 	end
 
-	function Color:__mul(col)
-		if type(col) == "number" then
-			return Color(self.r * col, self.g * col, self.b * col, self.a * col)
-		end
-
-		return Color(self.r * col.r, self.g * col.g, self.b * col.b, self.a * col.a)
+	function Color:__unm()
+		return self:Copy():Invert()
 	end
 
-	function Color:__div(col)
-		if type(col) == "number" then
-			return Color(self.r / col, self.g / col, self.b / col, self.a / col)
+	function Color:__add(other)
+		return Color(self.r + other.r, self.g + other.g, self.b + other.b, self.a + other.a)
+	end
+
+	function Color:__sub(other)
+		return Color(self.r - other.r, self.g - other.g, self.b - other.b, self.a - other.a)
+	end
+
+	function Color:__mul(other)
+		if type(other) == "number" then
+			return Color(self.r * other, self.g * other, self.b * other, self.a * other)
 		end
 
-		return Color(self.r / col.r, self.g / col.g, self.b / col.b, self.a / col.a)
+		return Color(self.r * other.r, self.g * other.g, self.b * other.b, self.a * other.a)
+	end
+
+	function Color:__div(other)
+		if type(other) == "number" then
+			return Color(self.r / other, self.g / other, self.b / other, self.a / other)
+		end
+
+		return Color(self.r / other.r, self.g / other.g, self.b / other.b, self.a / other.a)
+	end
+
+	function Color:__eq(other)
+		return self.r == other.r and self.g == other.g and self.b == other.b and self.a == other.a
+	end
+
+	function Color:__lt(other) -- is darker then other
+		return select(3, self:ToHSL()) < select(3, other:ToHSL())
+	end
+
+	function Color:__le(other) -- is dark or darker then other
+		return select(3, self:ToHSL()) <= select(3, other:ToHSL())
 	end
 end
 
-do -- base functions
+do -- methods
 	function Color:Unpack()
 		return self.r, self.g, self.b, self.a
 	end
 
 	function Color:SetUnpacked(r, g, b, a)
-		self.r, self.g, self.b, self.a = r, g, b, a
+		self.r, self.g, self.b, self.a = r or self.r, g or self.g, b or self.b, a or self.a
 	end
 
 	function Color:Normalize()
@@ -63,9 +79,39 @@ do -- base functions
 	function Color:Print(str)
 		print(self:String(str))
 	end
+
+	function Color:Grey() -- reduce saturation to 0
+		local h, _, v = self:ToHSV()
+		self:From(model, h, 0, v)
+	end
+
+	function Color:Invert()
+		self.r, self.g, self.b = 255 - self.r, 255 - self.g, 255 - self.b
+	end
+
+	function Color:Copy()
+		return Color(self.r, self.g, self.b, self.a)
+	end
+
+	function Color:ToTable()
+		return {self.r, self.g, self.b, self.a}
+	end
+
+	function Color:ToVector()
+		return Vector(self.r / 255, self.g / 255, self.b / 255)
+	end
+
+	function Color:Contrast(smooth)
+		if smooth then
+			local c = 255 - self:ToHexDecimal() / 0xffffff * 255
+			return Color(c, c, c)
+		else
+			return self:ToHexDecimal() > 0xffffff / 2 and Color(0, 0, 0) or Color(255, 255, 255)
+		end
+	end
 end
 
-do -- converters rgb > X
+do -- convert rgb > X
 	local bit = bit or bit32
 
 	function Color:ToHexDecimal() -- 24bit
@@ -126,6 +172,11 @@ do -- converters rgb > X
 		return h, math.floor(s * 100), v / 2.55
 	end
 
+	function Color:ToHWB()
+		local h, s, v = self:ToHSV()
+		return h, (1 - s) * v, 1 - v
+	end
+
 	function Color:ToHSL()
 		local r, g, b = self.r / 255, self.g / 255, self.b / 255
 
@@ -156,52 +207,35 @@ do -- converters rgb > X
 		local k = 255 - K
 		return (K - self.r) / K * 100, (K - self.g) / K * 100, (K - self.b) / K * 100, k * 100
 	end
-
-	function Color:ToTable()
-		return {self.r, self.g, self.b, self.a}
-	end
-
-	function Color:ToVector()
-		return Vector(self.r / 255, self.g / 255, self.b / 255)
-	end
-
-	function Color:Contrast(smooth)
-		if smooth then
-			local c = 255 - self:ToHexDecimal() / 0xffffff * 255
-			return Color(c, c, c)
-		else
-			return self:ToHexDecimal() > 0xffffff / 2 and Color(0, 0, 0) or Color(255, 255, 255)
-		end
-	end
 end
 
-do -- constructors X > rgb
-	local constructor = {}
+do -- convert X > rgb
+	local convert = {}
 
-	constructor.__index = constructor
+	function convert.hex(hex)
+		if type(hex) == "string" then
+			hex = tonumber(hex:gsub("^[#0]x?", ""), 16)
+		end
 
-	local isstring = isstring or function(str) return type(str) == "string" end
-	function constructor.hex(hex, alpha)
-		if isstring(hex) then hex = tonumber(hex:gsub("^[#0]x?", ""), 16) end
-		return setmetatable({
-			r = bit.rshift(bit.band(hex, 0xFF0000), 16),
-			g = bit.rshift(bit.band(hex, 0xFF00), 8),
-			b = bit.band(hex, 0xFF),
-			a = alpha or 255
-		}, Color)
+		return
+			bit.rshift(bit.band(hex, 0xFF0000), 16),
+			bit.rshift(bit.band(hex, 0xFF00), 8),
+			bit.band(hex, 0xFF)
 	end
 
-	function constructor.hexa(hexa)
-		if isstring(hexa) then hexa = tonumber(hexa:gsub("^[#0]x?", ""), 16) end
-		return setmetatable({
-			r = bit.rshift(bit.band(hexa, 0xFF000000), 24),
-			g = bit.rshift(bit.band(hexa, 0xFF0000), 16),
-			b = bit.rshift(bit.band(hexa, 0xFF00), 8),
-			a = bit.band(hexa, 0xFF)
-		}, Color)
+	function convert.hexa(hexa)
+		if type(hexa) == "string" then
+			hexa = tonumber(hexa:gsub("^[#0]x?", ""), 16)
+		end
+
+		return
+			bit.rshift(bit.band(hexa, 0xFF000000), 24),
+			bit.rshift(bit.band(hexa, 0xFF0000), 16),
+			bit.rshift(bit.band(hexa, 0xFF00), 8),
+			bit.band(hexa, 0xFF)
 	end
 
-	function constructor.hsv(h, s, v, alpha)
+	function convert.hsv(h, s, v)
 		h = h / 360
 		s = s / 100
 		v = v / 100
@@ -229,12 +263,10 @@ do -- constructors X > rgb
 			r, g, b = v, p, q
 		end
 
-		return setmetatable({
-			r = r * v * 255,
-			g = g * v * 255,
-			b = b * v * 255,
-			a = alpha or 255
-		}, Color)
+		return
+			r * v * 255,
+			g * v * 255,
+			b * v * 255
 	end
 
 	local function hsl2rgb(m, m2, h)
@@ -250,29 +282,40 @@ do -- constructors X > rgb
 			return m
 		end
 	end
-	function constructor.hsl(h, s, l, alpha)
+	function convert.hsl(h, s, l)
 		h, s, l = h / 360, s / 100, l / 100
 
 		local m2 = l <= 0.5 and l * (s + 1) or l + s - l * s
 		local m = l * 2 - m2
-		return setmetatable({
-			r = hsl2rgb(m, m2, h + 1 / 3) * 255,
-			g = hsl2rgb(m, m2, h) * 255,
-			b = hsl2rgb(m, m2, h - 1 / 3) * 255,
-			a = alpha or 255
-		}, Color)
+
+		return
+			hsl2rgb(m, m2, h + 1 / 3) * 255,
+			hsl2rgb(m, m2, h) * 255,
+			hsl2rgb(m, m2, h - 1 / 3) * 255
 	end
 
-	function constructor.cmyk(c, m, y, k, alpha)
+	function convert.cmyk(c, m, y, k)
 		c, m, y, k = c / 100, m / 100, y / 100, k / 100
 		local mk = 1 - k
 
-		return setmetatable({
-			r = (1 - c) * mk * 255,
-			g = (1 - m) * mk * 255,
-			b = (1 - y) * mk * 255,
-			a = alpha or 255
-		}, Color)
+		return
+			(1 - c) * mk * 255,
+			(1 - m) * mk * 255,
+			(1 - y) * mk * 255
+	end
+
+	local constructor = {}
+
+	function constructor:__index(model)
+		if convert[model] then
+			return function(...)
+				local args = {...}
+				local a = table.remove(args, debug.getinfo(make).nparams + 1)
+				local r, g, b, a2 = convert[model](unpack(args))
+
+				return Color(r, g, b, a2 or a)
+			end
+		end
 	end
 
 	function constructor:__call(r, g, b, a)
@@ -280,6 +323,14 @@ do -- constructors X > rgb
 	end
 
 	setmetatable(Color, constructor)
+
+	function Color:From(model, ...)
+		if convert[model] then
+			self:SetUnpacked(
+				convert[model](...)
+			)
+		end
+	end
 end
 
 function Color.test()
@@ -287,7 +338,7 @@ function Color.test()
 
 	Color(255, 255, 0):Print("from incredible-gmod.ru with <3")
 
-	print("\trgb > color\t", Color(255, 0, 0))
+	print("\trgb > color\t", Color(255, 0, 0, alpha))
 	print("\thex > color\t", Color.hex("#FF0000", alpha))
 	print("\thexdec > color\t", Color.hex(0xFF0000, alpha))
 	print("\thexa > color\t", Color.hexa(0xFF0000AF))
@@ -306,6 +357,6 @@ function Color.test()
 	print("\tcolor > cmyk\t", table.concat({Color(255, 0, 0, alpha):ToCMYK()}, ", "))
 end
 
--- Color.test()
+ Color.test()
 
 return Color
