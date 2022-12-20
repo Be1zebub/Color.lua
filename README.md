@@ -2,6 +2,7 @@
 Convert and manipulate color values.
 
 ### Example:
+![image](https://user-images.githubusercontent.com/34854689/208636169-3f91271c-a40a-4265-983c-38dd4fc61dd2.png)
 ```lua
 local alpha = 175
 
@@ -56,5 +57,3 @@ print("\tToTable\t\t", Color(123):ToTable())
 print("\tToVector\t", Vector and Color(0, 255):ToVector() or "Cant convert to Vector, because Vector class is not defind")
 print("\tContrast\t", Color(180, 150):Contrast(true))
 ```
-![image](https://user-images.githubusercontent.com/34854689/208636169-3f91271c-a40a-4265-983c-38dd4fc61dd2.png)
-
