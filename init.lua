@@ -3,6 +3,10 @@
 
 local Color = {}
 
+local function IsColor(var)
+	return getmetatable(var) == Color
+end
+
 do -- meta events
 	Color.__index = Color
 
@@ -11,7 +15,7 @@ do -- meta events
 	end
 
 	function Color:__concat(v)
-		return tostring(self) .. v
+		return tostring(self) .. (IsColor(v) and (" ".. tostring(v)) or v)
 	end
 
 	function Color:__unm()
@@ -62,10 +66,12 @@ do -- methods
 
 	function Color:SetUnpacked(r, g, b, a)
 		self.r, self.g, self.b, self.a = r or self.r, g or self.g, b or self.b, a or self.a
+		return self
 	end
 
 	function Color:Normalize()
 		self.r, self.g, self.b, self.a = self.r / 255, self.g / 255, self.b / 255, self.a / 255
+		return self
 	end
 
 	function Color:GetNormalized()
@@ -76,17 +82,24 @@ do -- methods
 		return string.format("\27[38;2;%d;%d;%dm%s\27[0m", self.r, self.g, self.b, str)
 	end
 
+	function Color:ToString()
+		return string.format("\27[38;2;%d;%d;%dm%s\27[0m", self.r, self.g, self.b, self)
+	end
+
 	function Color:Print(str)
 		print(self:String(str))
+		return self
 	end
 
 	function Color:Grey() -- reduce saturation to 0
 		local h, _, v = self:ToHSV()
-		self:From(model, h, 0, v)
+		self:From("hsv", h, 0, v)
+		return self
 	end
 
 	function Color:Invert()
-		self.r, self.g, self.b = 255 - self.r, 255 - self.g, 255 - self.b
+		self.r, self.g, self.b = math.abs(255 - self.r), math.abs(255 - self.g), math.abs(255 - self.b)
+		return self
 	end
 
 	function Color:Copy()
@@ -141,27 +154,27 @@ do -- convert rgb > X
 	function Color:ToHSV()
 		local h, s, v
 
-		local min_v = math.min(self.r, self.g, self.b)
-		local max_v = math.max(self.r, self.g, self.b)
+		local min = math.min(self.r, self.g, self.b)
+		local max = math.max(self.r, self.g, self.b)
 
-		v = max_v
+		v = max
 
-		local v_delta = max_v - min_v
+		local delta = max - min
 
-		if max_v ~= 0 then
-			s = v_delta / max_v
+		if max ~= 0 then
+			s = delta / max
 		else
 			s = 0
 			h = -1
 			return h, math.floor(s * 100), v / 2.55
 		end
 
-		if self.r == max_v then
-			h = (self.g - self.b) / v_delta
-		elseif self.g == max_v then
-			h = 2 + (self.b - self.r) / v_delta
+		if self.r == max then
+			h = (self.g - self.b) / delta
+		elseif self.g == max then
+			h = 2 + (self.b - self.r) / delta
 		else
-			h = 4 + (self.r - self.g) / v_delta
+			h = 4 + (self.r - self.g) / delta
 		end
 
 		h = h * 60
@@ -174,7 +187,7 @@ do -- convert rgb > X
 
 	function Color:ToHWB()
 		local h, s, v = self:ToHSV()
-		return h, (1 - s) * v, 1 - v
+		return h, (100 - s) * v, 100 - v
 	end
 
 	function Color:ToHSL()
@@ -203,9 +216,12 @@ do -- convert rgb > X
 	end
 
 	function Color:ToCMYK()
-		local K = math.max(self.r, self.g, self.b)
-		local k = 255 - K
-		return (K - self.r) / K * 100, (K - self.g) / K * 100, (K - self.b) / K * 100, k * 100
+		local max = math.max(self.r, self.g, self.b)
+		return
+			(max - self.r) / max * 100,
+			(max - self.g) / max * 100,
+			(max - self.b) / max * 100,
+			math.min(self.r, self.g, self.b) / 2.55
 	end
 end
 
@@ -282,6 +298,7 @@ do -- convert X > rgb
 			return m
 		end
 	end
+
 	function convert.hsl(h, s, l)
 		h, s, l = h / 360, s / 100, l / 100
 
@@ -292,6 +309,10 @@ do -- convert X > rgb
 			hsl2rgb(m, m2, h + 1 / 3) * 255,
 			hsl2rgb(m, m2, h) * 255,
 			hsl2rgb(m, m2, h - 1 / 3) * 255
+	end
+
+	function convert.hwb(h, w, b)
+		return convert.hsv(h, 100 - w / (100 - b), 100 - b)
 	end
 
 	function convert.cmyk(c, m, y, k)
@@ -307,11 +328,12 @@ do -- convert X > rgb
 	local constructor = {}
 
 	function constructor:__index(model)
-		if convert[model] then
+		local make = convert[model]
+		if make then
 			return function(...)
 				local args = {...}
 				local a = table.remove(args, debug.getinfo(make).nparams + 1)
-				local r, g, b, a2 = convert[model](unpack(args))
+				local r, g, b, a2 = make(unpack(args))
 
 				return Color(r, g, b, a2 or a)
 			end
@@ -326,7 +348,7 @@ do -- convert X > rgb
 
 	function Color:From(model, ...)
 		if convert[model] then
-			self:SetUnpacked(
+			return self:SetUnpacked(
 				convert[model](...)
 			)
 		end
@@ -338,25 +360,56 @@ function Color.test()
 
 	Color(255, 255, 0):Print("from incredible-gmod.ru with <3")
 
-	print("\trgb > color\t", Color(255, 0, 0, alpha))
-	print("\thex > color\t", Color.hex("#FF0000", alpha))
-	print("\thexdec > color\t", Color.hex(0xFF0000, alpha))
-	print("\thexa > color\t", Color.hexa(0xFF0000AF))
-	print("\thsv > color\t", Color.hsv(0, 100, 100, alpha))
-	print("\thsl > color\t", Color.hsl(0, 100, 50, alpha))
-	print("\tcmyk > color\t", Color.cmyk(0, 100, 100, 0, alpha))
+	print("\nconverters:")
+
+	print("\trgb > color\t", Color(0, 255, 0, alpha):ToString())
+	print("\thex > color\t", Color.hex("#de621f", alpha):ToString())
+	print("\thexdec > color\t", Color.hex(0xDED81F, alpha):ToString())
+	print("\thexa > color\t", Color.hexa(0x82DE1FAF):ToString())
+	print("\thsv > color\t", Color.hsv(120, 86, 87, alpha):ToString())
+	print("\thsl > color\t", Color.hsl(150, 75, 50, alpha):ToString())
+	print("\thwb > color\t", Color.hwb(0, 0, 0, alpha):ToString())
+	print("\tcmyk > color\t", Color.cmyk(86, 37, 0, 13, alpha):ToString())
 
 	print("")
 
-	print("\tcolor > hex\t", Color(255, 0, 0, alpha):ToHex())
-	print("\tcolor > hexa\t", Color(255, 0, 0, alpha):ToHexa())
-	print("\tcolor > hexdecimal", Color(255, 0, 0, alpha):ToHexDecimal())
-	print("\tcolor > hexadecimal", Color(255, 0, 0, alpha):ToHexaDecimal())
-	print("\tcolor > hsv\t", table.concat({Color(255, 0, 0, alpha):ToHSV()}, ", "))
-	print("\tcolor > hsl\t", table.concat({Color(255, 0, 0, alpha):ToHSL()}, ", "))
-	print("\tcolor > cmyk\t", table.concat({Color(255, 0, 0, alpha):ToCMYK()}, ", "))
+	print("\tcolor > hex\t", Color(0, 255, 0, alpha):ToHex())
+	print("\tcolor > hexa\t", Color(222, 98, 31, alpha):ToHexa())
+	print("\tcolor > hexdecimal", Color(222, 216, 31, alpha):ToHexDecimal())
+	print("\tcolor > hexadecimal", Color(130, 222, 31, alpha):ToHexaDecimal())
+	print("\tcolor > hsv\t", table.concat({Color(27, 193, 27, alpha):ToHSV()}, ", "))
+	print("\tcolor > hsl\t", table.concat({Color(31, 223, 127, alpha):ToHSL()}, ", "))
+	print("\tcolor > hwb\t", table.concat({Color(255, 0, 0, alpha):ToHWB()}, ", "))
+	print("\tcolor > cmyk\t", table.concat({Color(31, 139, 221, alpha):ToCMYK()}, ", "))
+
+	print("meta events:")
+
+	print("\t__tostring\t", tostring(Color(123)))
+	print("\t__concat\t", "test ".. Color(100) .. " :)")
+	print("\t__unm\t\t", -Color(1, 2, 3))
+	print("\t__add\t\t", Color(25, 25, 25) + Color(150, 75, 0, 0))
+	print("\t__sub\t\t", Color(255, 255, 255) - Color(0, 255, 255, 0))
+	print("\t__mul\t\t", Color(100, 50, 0, 100) * 2)
+	print("\t__div\t\t", Color(200, 50, 0) / 2)
+	print("\t__eq\t\t", Color(255, 0, 0) == Color(255, 0, 0), Color(255, 0, 0) == Color(0, 0, 0))
+	print("\t__lt\t\t", Color(255, 0, 0) < Color(0, 0, 0))
+	print("\t__le\t\t", Color(255, 0, 0) <= Color(255, 1, 0))
+
+	print("methods:")
+
+	print("\tUnpack\t\t", table.concat({Color(255, 0, 0):Unpack()}, ", "))
+	print("\tSetUnpacked\t", Color(255, 0, 0):SetUnpacked(0, 255, 0))
+	print("\tNormalize\t", Color(255, 50, 100):Normalize())
+	print("\tGetNormalized\t", Color(255, 50, 100):GetNormalized())
+	print("\tString\t\t", Color.hex("#16a085"):String("hello"))
+	print("\tGrey\t\t", Color(255, 255):Grey())
+	print("\tInvert\t\t", Color(255, 100):Invert())
+	print("\tCopy\t\t", Color(100):Copy())
+	print("\tToTable\t\t", Color(123):ToTable())
+	print("\tToVector\t", Vector and Color(0, 255):ToVector() or "Cant convert to Vector, because Vector class is not defind")
+	print("\tContrast\t", Color(180, 150):Contrast(true))
 end
 
 -- Color.test()
 
-return Color
+return Color, IsColor
