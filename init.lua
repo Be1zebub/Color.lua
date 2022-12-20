@@ -78,7 +78,7 @@ do -- converters rgb > X
 	]]--
 		return bit.bor(bit.lshift(self.r, 16), bit.lshift(self.g, 8), self.b)
 	end
-	
+
 	function Color:ToHexaDecimal() -- Alpha support, 32bit
 		return bit.bor(bit.lshift(self.r, 24), bit.lshift(self.g, 16), bit.lshift(self.b, 8), self.a)
 	end
@@ -90,7 +90,7 @@ do -- converters rgb > X
 
 		return string.format("%x", (self.r * 0x10000) + (self.g * 0x100) + self.b):upper()
 	end
-	
+
 	function Color:ToHexa(hash)
 		if hash then
 			return string.format("#%x", (self.r * 0x1000000) + (self.g * 0x10000) + (self.b * 0x100) + self.a):upper()
@@ -189,7 +189,7 @@ do -- constructors X > rgb
 
 	local isstring = isstring or function(str) return type(str) == "string" end
 	function constructor.hex(hex, alpha)
-		if isstring(hex) then hex = tonumber(hex:gsub("^[#0]x?", "")) end
+		if isstring(hex) then hex = tonumber("0x".. hex:gsub("^#", "")) end
 		return setmetatable({
 			r = bit.rshift(bit.band(hex, 0xFF0000), 16),
 			g = bit.rshift(bit.band(hex, 0xFF00), 8),
@@ -197,9 +197,9 @@ do -- constructors X > rgb
 			a = alpha or 255
 		}, Color)
 	end
-	
+
 	function constructor.hexa(hexa)
-		if isstring(hexa) then hexa = tonumber(hexa:gsub("^[#0]x?", "")) end
+		if isstring(hexa) then hexa = tonumber("0x".. hexa:gsub("#?", "")) end
 		return setmetatable({
 			r = bit.rshift(bit.band(hexa, 0xFF000000), 24),
 			g = bit.rshift(bit.band(hexa, 0xFF0000), 16),
@@ -296,8 +296,8 @@ function Color.test()
 
 	print("\trgb > color\t", Color(255, 0, 0))
 	print("\thex > color\t", Color.hex("#FF0000", alpha))
-	print("\thexdec > color", Color.hex(16711680, alpha))
-	print("\thexa > color", Color.hexa(4278190255))
+	print("\thexdec > color\t", Color.hex(16711680, alpha))
+	print("\thexa > color\t", Color.hexa(4278190255))
 	print("\thsv > color\t", Color.hsv(0, 100, 100, alpha))
 	print("\thsl > color\t", Color.hsl(0, 100, 50, alpha))
 	print("\tcmyk > color\t", Color.cmyk(0, 100, 100, 0, alpha))
@@ -313,6 +313,6 @@ function Color.test()
 	print("\tcolor > cmyk\t", table.concat({Color(255, 0, 0, alpha):ToCMYK()}, ", "))
 end
 
--- Color.test()
+Color.test()
 
 return Color
