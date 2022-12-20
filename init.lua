@@ -69,13 +69,6 @@ do -- converters rgb > X
 	local bit = bit or bit32
 
 	function Color:ToHexDecimal() -- 24bit
-	--[[
-		local r, g, b = self.r, self.g, self.b
-		r = bit.band(bit.lshift(r, 16), 0xFF0000)
-		g = bit.band(bit.lshift(g, 8), 0x00FF00)
-		b = bit.band(b, 0x0000FF)
-		return bit.bor(bit.bor(r, g), b)
-	]]--
 		return bit.bor(bit.lshift(self.r, 16), bit.lshift(self.g, 8), self.b)
 	end
 
@@ -189,7 +182,7 @@ do -- constructors X > rgb
 
 	local isstring = isstring or function(str) return type(str) == "string" end
 	function constructor.hex(hex, alpha)
-		if isstring(hex) then hex = tonumber("0x".. hex:gsub("^#", "")) end
+		if isstring(hex) then hex = tonumber(hex:gsub("^[#0]x?", ""), 16) end
 		return setmetatable({
 			r = bit.rshift(bit.band(hex, 0xFF0000), 16),
 			g = bit.rshift(bit.band(hex, 0xFF00), 8),
@@ -199,7 +192,7 @@ do -- constructors X > rgb
 	end
 
 	function constructor.hexa(hexa)
-		if isstring(hexa) then hexa = tonumber("0x".. hexa:gsub("#?", "")) end
+		if isstring(hexa) then hexa = tonumber(hexa:gsub("^[#0]x?", ""), 16) end
 		return setmetatable({
 			r = bit.rshift(bit.band(hexa, 0xFF000000), 24),
 			g = bit.rshift(bit.band(hexa, 0xFF0000), 16),
@@ -296,8 +289,8 @@ function Color.test()
 
 	print("\trgb > color\t", Color(255, 0, 0))
 	print("\thex > color\t", Color.hex("#FF0000", alpha))
-	print("\thexdec > color\t", Color.hex(16711680, alpha))
-	print("\thexa > color\t", Color.hexa(4278190255))
+	print("\thexdec > color\t", Color.hex(0xFF0000, alpha))
+	print("\thexa > color\t", Color.hexa(0xFF0000AF))
 	print("\thsv > color\t", Color.hsv(0, 100, 100, alpha))
 	print("\thsl > color\t", Color.hsl(0, 100, 50, alpha))
 	print("\tcmyk > color\t", Color.cmyk(0, 100, 100, 0, alpha))
