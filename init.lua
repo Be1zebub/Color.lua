@@ -68,7 +68,7 @@ end
 do -- converters rgb > X
 	local bit = bit or bit32
 
-	function Color:ToHexDeciminal()
+	function Color:ToHexDecimal() -- 24bit
 	--[[
 		local r, g, b = self.r, self.g, self.b
 		r = bit.band(bit.lshift(r, 16), 0xFF0000)
@@ -79,12 +79,24 @@ do -- converters rgb > X
 		return bit.bor(bit.lshift(self.r, 16), bit.lshift(self.g, 8), self.b)
 	end
 
+	function Color:ToHexaDecimal() -- Alpha support, 32bit
+		return bit.bor(bit.lshift(self.r, 24), bit.lshift(self.g, 16), bit.lshift(self.b, 8), self.a)
+	end
+
 	function Color:ToHex(hash)
 		if hash then
 			return string.format("#%x", (self.r * 0x10000) + (self.g * 0x100) + self.b):upper()
 		end
 
 		return string.format("%x", (self.r * 0x10000) + (self.g * 0x100) + self.b):upper()
+	end
+
+	function Color:ToHexa(hash)
+		if hash then
+			return string.format("#%x", (self.r * 0x1000000) + (self.g * 0x10000) + (self.b * 0x100) + self.a):upper()
+		end
+
+		return string.format("%x", (self.r * 0x1000000) + (self.g * 0x10000) + (self.b * 0x100) + self.a):upper()
 	end
 
 	function Color:ToHSV()
@@ -162,10 +174,10 @@ do -- converters rgb > X
 
 	function Color:Contrast(smooth)
 		if smooth then
-			local c = 255 - self:ToHexDeciminal() / 0xffffff * 255
+			local c = 255 - self:ToHexDecimal() / 0xffffff * 255
 			return Color(c, c, c)
 		else
-			return self:ToHexDeciminal() > 0xffffff / 2 and Color(0, 0, 0) or Color(255, 255, 255)
+			return self:ToHexDecimal() > 0xffffff / 2 and Color(0, 0, 0) or Color(255, 255, 255)
 		end
 	end
 end
@@ -175,27 +187,24 @@ do -- constructors X > rgb
 
 	constructor.__index = constructor
 
-	local rshift, gshift, bshift = 8 * 2, 8 * 3, 8
-	local rmask = bit.lshift(0xFF, rshift)
-	local gmask = bit.lshift(0xFF, gshift)
-	local bmask = bit.lshift(0xFF, bshift)
-
-	function constructor.hexdeciminal(int, alpha)
+	local isstring = isstring or function(str) return type(str) == "string" end
+	function constructor.hex(hex, alpha)
+		if isstring(hex) then hex = tonumber("0x".. hex:gsub("^#", "")) end
 		return setmetatable({
-			r = bit.rshift(bit.band(int, rmask), rshift),
-			g = bit.rshift(bit.band(int, gmask), gshift),
-			b = bit.rshift(bit.band(int, bmask), bshift),
+			r = bit.rshift(bit.band(hex, 0xFF0000), 16),
+			g = bit.rshift(bit.band(hex, 0xFF00), 8),
+			b = bit.band(hex, 0xFF),
 			a = alpha or 255
 		}, Color)
 	end
 
-	function constructor.hex(hex, alpha)
-		hex = hex:gsub("#", "")
+	function constructor.hexa(hexa)
+		if isstring(hexa) then hexa = tonumber("0x".. hexa:gsub("#?", "")) end
 		return setmetatable({
-			r = tonumber("0x".. hex:sub(1, 2)),
-			g = tonumber("0x".. hex:sub(3, 4)),
-			b = tonumber("0x".. hex:sub(5, 6)),
-			a = alpha or 255
+			r = bit.rshift(bit.band(hexa, 0xFF000000), 24),
+			g = bit.rshift(bit.band(hexa, 0xFF0000), 16),
+			b = bit.rshift(bit.band(hexa, 0xFF00), 8),
+			a = bit.band(hexa, 0xFF)
 		}, Color)
 	end
 
@@ -287,7 +296,8 @@ function Color.test()
 
 	print("\trgb > color\t", Color(255, 0, 0))
 	print("\thex > color\t", Color.hex("#FF0000", alpha))
-	print("\thexdeciminal > color", Color.hexdeciminal(16711680, alpha))
+	print("\thexdec > color\t", Color.hex(16711680, alpha))
+	print("\thexa > color\t", Color.hexa(4278190255))
 	print("\thsv > color\t", Color.hsv(0, 100, 100, alpha))
 	print("\thsl > color\t", Color.hsl(0, 100, 50, alpha))
 	print("\tcmyk > color\t", Color.cmyk(0, 100, 100, 0, alpha))
@@ -295,7 +305,9 @@ function Color.test()
 	print("")
 
 	print("\tcolor > hex\t", Color(255, 0, 0, alpha):ToHex())
-	print("\tcolor > hexdeciminal", Color(255, 0, 0, alpha):ToHexDeciminal())
+	print("\tcolor > hexa\t", Color(255, 0, 0, alpha):ToHexa())
+	print("\tcolor > hexdecimal", Color(255, 0, 0, alpha):ToHexDecimal())
+	print("\tcolor > hexadecimal", Color(255, 0, 0, alpha):ToHexaDecimal())
 	print("\tcolor > hsv\t", table.concat({Color(255, 0, 0, alpha):ToHSV()}, ", "))
 	print("\tcolor > hsl\t", table.concat({Color(255, 0, 0, alpha):ToHSL()}, ", "))
 	print("\tcolor > cmyk\t", table.concat({Color(255, 0, 0, alpha):ToCMYK()}, ", "))
