@@ -313,6 +313,6 @@ function Color.test()
 	print("\tcolor > cmyk\t", table.concat({Color(255, 0, 0, alpha):ToCMYK()}, ", "))
 end
 
-Color.test()
+-- Color.test()
 
 return Color
