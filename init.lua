@@ -75,7 +75,7 @@ do -- methods
 	end
 
 	function Color:GetNormalized()
-		return Color(self.r / 255, self.g / 255, self.b / 255, self.a / 255)
+		return self:Copy():Normalize()
 	end
 
 	function Color:String(str)
